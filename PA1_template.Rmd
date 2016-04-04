@@ -1,0 +1,75 @@
+# Reproducable Research Assignment 1
+Eric Riehl
+April 3, 2016
+
+## Loading and preprocessing the data
+```{r echo=TRUE}
+library(dplyr)
+fitdata <- read.csv("activity.csv", 
+              header=TRUE, 
+              colClasses=c("integer","Date","integer"), 
+              na.strings = "NA")
+
+```
+
+## What is mean total number of steps taken per day?
+
+```{r echo=TRUE}
+fitByDate <- group_by(fitdata,date) %>% summarize(totalSteps=sum(steps,na.rm=TRUE))
+hist(fitByDate$totalSteps)
+
+meanPerDay <- mean (fitByDate$totalSteps)
+medianPerDay <- median (fitByDate$totalSteps)
+paste ("Mean steps per day is: ", toString(meanPerDay))
+paste ("Median steps per day is: ", toString(medianPerDay))
+```
+
+
+## What is the average daily activity pattern?
+
+```{r echo=TRUE}
+fitByInterval <- group_by(fitdata,interval) %>% summarize(AveSteps=mean(steps, na.rm=TRUE))
+
+plot(y=fitByInterval$AveSteps,x=fitByInterval$interval,type="l", main="Average steps per interval in Day")
+
+maxSteps <- max(fitByInterval$AveSteps)
+maxIntervalIndex <- fitByInterval$AveSteps == maxSteps;
+maxInterval <- fitByInterval[maxIntervalIndex,]$interval
+paste("The interval with the most average steps is: ", toString(maxInterval))
+```
+
+## Imputing missing values
+
+### the value for TRUE in the table is the total missing values
+```{r echo=TRUE}
+table(is.na(fitdata$steps))
+```
+
+```{r echo=TRUE}
+y<-merge (x=fitdata,y=fitByInterval,by="interval")
+replaceIndex <- (is.na(y$steps))
+fmissing <- y[replaceIndex,]
+fmissing$steps <- fmissing$AveSteps
+f2 <- y[!replaceIndex,]
+newfitdata <- rbind(fmissing,f2)
+newfitdata <- transmute(newfitdata,steps=steps,date=date,interval=interval) %>% arrange(date,interval)
+```
+
+
+```{r echo=TRUE}
+fitByDate <- group_by(newfitdata,date) %>% summarize(totalSteps=sum(steps,na.rm=TRUE))
+hist(fitByDate$totalSteps)
+
+meanPerDay <- mean (fitByDate$totalSteps)
+medianPerDay <- median (fitByDate$totalSteps)
+paste ("Mean steps per day is: ", toString(meanPerDay))
+paste ("Median steps per day is: ", toString(medianPerDay))
+```
+## Are there differences in activity patterns between weekdays and weekends?
+
+```{r echo=TRUE}
+library(lattice)
+newfitdata$daytype <- ifelse (weekdays(newfitdata$date) %in% c("Saturday","Sunday"),"weekend","weekday")
+fitByInterval <- group_by(newfitdata,interval,daytype) %>% summarize(AveSteps=mean(steps, na.rm=TRUE))
+xyplot(data = fitByInterval,AveSteps~interval|daytype,layout=c(1,2),type="l")
+```
